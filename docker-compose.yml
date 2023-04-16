@@ -1,0 +1,156 @@
+version: "3.0"
+
+networks:
+  dev-net:
+    # 网络
+    driver: bridge # 桥接模式
+
+###
+### etcd 其他环境配置见：https://doczhcn.gitbook.io/etcd/index/index-1/configuration
+###
+services:
+  etcd1:
+    image: bitnami/etcd:latest # 镜像
+    container_name: etcd1 # 容器名 --name
+    restart: always # 总是重启
+    networks:
+      - dev-net # 使用的网络 --network
+    ports:
+      # 端口映射 -p
+      - "2379:2379"
+      - "2380:2380"
+    expose:
+      - "2379"
+    environment:
+      # 环境变量 --env
+      - ALLOW_NONE_AUTHENTICATION=yes # 允许不用密码登录
+      - ETCD_NAME=etcd1 # etcd 的名字
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd1:2380 # 列出这个成员的伙伴 URL 以便通告给集群的其他成员
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380 # 用于监听伙伴通讯的URL列表
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379 # 用于监听客户端通讯的URL列表
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd1:2379 # 列出这个成员的客户端URL，通告给集群中的其他成员
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster # 在启动期间用于 etcd 集群的初始化集群记号
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380 # 为启动初始化集群配置
+      - ETCD_INITIAL_CLUSTER_STATE=new # 初始化集群状态
+    volumes:
+      - ./etcd1_data:/bitnami/etcd # 挂载的数据卷
+
+  etcd2:
+    image: bitnami/etcd:latest
+    container_name: etcd2
+    restart: always
+    networks:
+      - dev-net
+    ports:
+      - "20002:2379"
+      - "20003:2380"
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_NAME=etcd2
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd2:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd2:2379
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - ./etcd2_data:/bitnami/etcd
+
+  etcd3:
+    image: bitnami/etcd:latest
+    container_name: etcd3
+    restart: always
+    networks:
+      - dev-net
+    ports:
+      - "20004:2379"
+      - "20005:2380"
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_NAME=etcd3
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd3:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd3:2379
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - ./etcd3_data:/bitnami/etcd
+
+  #Redis
+  cdn_client_redis:
+    image: redis:7.0.4
+    container_name: cdn_client_redis
+    restart: always
+    networks:
+      - dev-net
+    ports:
+      - 6379:6379
+    expose:
+      - "6379"
+    environment:
+      TZ: "Asia/Taipei"
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis.conf
+    command: redis-server /usr/local/etc/redis.conf
+
+  mysql_master:
+    image: mysql:8.0
+    env_file:
+      - ./master/mysql_master.env
+    container_name: "mysql_master"
+    # healthcheck:
+    #   test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-us9_master", "-ppCwrcxxTB72zDBZEw"]
+    #   timeout: 20s
+    #   retries: 5
+    restart: "no"
+    ports:
+      - 3306:3306
+    volumes:
+      - ./master/conf/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./master/conf/install_db.sql:/docker-entrypoint-initdb.d/install_db.sql
+      - ./master/data:/var/lib/mysql
+    networks:
+      - dev-net
+
+  mysql_slave:
+    image: mysql:8.0
+    env_file:
+      - ./slave/mysql_slave.env
+    container_name: "mysql_slave"
+    restart: "no"
+    ports:
+      - 3307:3306
+    # depends_on:
+    #     mysql_master:
+    #       condition: service_healthy
+    volumes:
+      - ./slave/conf/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./slave/data:/var/lib/mysql
+    # command: 
+    #   - /bin/bash
+    #   - -c
+    #   - |
+    #     mysql -us9_master -ppCwrcxxTB72zDBZEw -e CHANGE MASTER TO MASTER_HOST='mysql_master',MASTER_USER='s9_slave',MASTER_PASSWORD='CwrcxxTB72zDBZEw'
+    #     START SLAVE
+    #     tail -f /dev/null
+    stdin_open: true
+    tty: true
+    networks:
+      - dev-net
+
+  rabbitmq:
+    image: rabbitmq:3.11.8-management
+    container_name: 'rabbitmq'
+    env_file:
+      - ./rabbitmq/rabbitmq.env
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    networks:
+      - dev-net

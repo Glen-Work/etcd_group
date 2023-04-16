@@ -1,0 +1,72 @@
+{
+    "MySQL": {
+        "s9com": {
+            "writes": [
+                {
+                    "host": "127.0.0.1",
+                    "port": 3306,
+                    "username": "s9_master",
+                    "password": "CwrcxxTB72zDBZEw",
+                    "database": "s9_platform"
+                }
+            ],
+            "reads": [
+                {
+                    "host": "127.0.0.1",
+                    "port": 3307,
+                    "username": "s9_slave",
+                    "password": "CwrcxxTB72zDBZEw",
+                    "database": "s9_platform"
+                }
+            ]
+        }
+    },
+    "Redis": {
+        "s9com": {
+            "type": "single",
+            "host": "127.0.0.1",
+            "port": 6379,
+            "password": "1qaz@WSX",
+            "database": 0
+        }
+    },
+    "Log": {
+        "s9com": {
+            "console": {
+                "enable": true,
+                "level": 3,
+                "color": true,
+                "json_format": false
+            },
+            "elk": {
+                "enable": false,
+                "level": 1,
+                "addr": "",
+                "index": "",
+                "source_type": ""
+            },
+            "file": {
+                "enable": true,
+                "level": 3,
+                "filename": "",
+                "max_size": 1048576,
+                "max_backups": 0,
+                "max_age": 10,
+                "compress": true
+            }
+        },
+        "RabbitMQ": {
+            "s9com": {
+                "host": "127.0.0.1",
+                "port": 5672,
+                "username": "guest",
+                "password": "guest"
+            }
+        },
+        "Jwt": {
+            "s9com": {
+                "secret_key": "uKWPcsjwoqo@jsdi&*&@*n"
+            }
+        }
+    }
+}
